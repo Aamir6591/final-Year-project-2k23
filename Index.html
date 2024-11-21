@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Language to Text Conversion</title>
+    <style>
+        /* CSS styles here (aapke pehle wale code ke styles yahan rahenge) */
+    </style>
+</head>
+
+<body>
+    <h1>Sign Language to Text Conversion</h1>
+
+    <div id="main-container">
+        <div id="video-container">
+            <video id="camera" autoplay></video>
+            <div id="hand-skeleton">
+                <p>Hand Skeleton View</p>
+            </div>
+        </div>
+
+        <div id="output">
+            <p><strong>Character:</strong> <span id="character">next</span></p>
+            <p><strong>Sentence:</strong> <span id="sentence">H</span></p>
+            <p style="color: red;"><strong>Suggestions:</strong></p>
+        </div>
+
+        <div class="suggestions">
+            <button class="suggestion-btn"></button>
+            <button class="suggestion-btn"></button>
+            <button class="suggestion-btn"></button>
+            <button class="suggestion-btn"></button>
+        </div>
+
+        <div id="action-buttons" style="text-align: center;">
+            <button class="action-btn" id="clear-btn">Clear</button>
+            <button class="action-btn" id="speak-btn">Speak</button>
+            <button class="action-btn" id="capture-btn">Start Auto-Detection</button>
+        </div>
+    </div>
+
+    <div id="footer">
+        <p>&copy; 2024 Sign Language to Text Conversion App</p>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        const video = document.getElementById('camera');
+        const characterDisplay = document.getElementById('character');
+        const sentenceDisplay = document.getElementById('sentence');
+        let autoDetect = false; // Flag to control auto-detection
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(error => {
+                console.error('Error accessing the camera:', error);
+            });
+
+        function captureFrameAndPredict() {
+            if (!autoDetect) return; // Exit if auto-detection is off
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageData = canvas.toDataURL('image/jpeg');
+            const base64Image = imageData.split(',')[1];
+
+            fetch('http://127.0.0.1:5000/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: base64Image })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error:', data.error);
+                } else {
+                    characterDisplay.textContent = data.character;
+                    sentenceDisplay.textContent += data.character;
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        setInterval(captureFrameAndPredict, 1000);
+
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            characterDisplay.textContent = '';
+            sentenceDisplay.textContent = '';
+        });
+
+        document.getElementById('speak-btn').addEventListener('click', () => {
+            const sentence = sentenceDisplay.textContent;
+            const utterance = new SpeechSynthesisUtterance(sentence);
+            window.speechSynthesis.speak(utterance);
+        });
+
+        document.getElementById('capture-btn').addEventListener('click', () => {
+            autoDetect = !autoDetect;
+            document.getElementById('capture-btn').textContent = autoDetect ? 'Stop Auto-Detection' : 'Start Auto-Detection';
+        });
+    </script>
+</body>
+
+</html>
